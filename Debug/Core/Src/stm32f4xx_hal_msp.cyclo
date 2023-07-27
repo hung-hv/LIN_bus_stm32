@@ -5,3 +5,5 @@
 ../Core/Src/stm32f4xx_hal_msp.c:213:6:HAL_I2S_MspDeInit	2
 ../Core/Src/stm32f4xx_hal_msp.c:246:6:HAL_SPI_MspInit	2
 ../Core/Src/stm32f4xx_hal_msp.c:283:6:HAL_SPI_MspDeInit	2
+../Core/Src/stm32f4xx_hal_msp.c:313:6:HAL_TIM_Base_MspInit	2
+../Core/Src/stm32f4xx_hal_msp.c:338:6:HAL_TIM_Base_MspDeInit	2
