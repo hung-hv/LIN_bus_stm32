@@ -8,6 +8,12 @@ LIN_MASTER_t LIN_MASTER;
 LIN_FRAME_t LIN_FRAME;
 uint8_t btn = 1;
 
+uint8_t checker_1 = 0;
+uint8_t checker_2 = 0;
+uint8_t checker_3 = 0;
+
+extern uint8_t flag_read_pin;
+
 void led_testing() {
     if(HAL_GPIO_ReadPin (GPIOA, GPIO_PIN_0))
     {
@@ -58,29 +64,37 @@ LIN_ERR_t UB_LIN_SendData(LIN_FRAME_t *frame, UART_HandleTypeDef *huart)
 
   // wait until the last byte has been sent
 //  while (USART_GetFlagStatus(LIN_UART, USART_FLAG_TXE) == RESET);
-  while (__HAL_UART_GET_FLAG(huart, UART_FLAG_TXE) == RESET);
+//  while (__HAL_UART_GET_FLAG(huart, UART_FLAG_TXE) == RESET);
   //--------------------------------------------------------------------
   // Break-Field
   //--------------------------------------------------------------------
+//  flag_read_pin = 1; //active timer for reading pin
+  uint8_t test_data = 0xB7;
+    flag_read_pin = 1; //active timer for reading pin
+
   HAL_LIN_SendBreak(huart);
+  HAL_UART_Transmit(huart, &test_data, 1, 100);
   // wait until BreakField has been sent
 //  while (USART_GetFlagStatus(LIN_UART, USART_FLAG_TC) == RESET);
-  while (__HAL_UART_GET_FLAG(huart, UART_FLAG_TC) == RESET);
+//  while (__HAL_UART_GET_FLAG(huart, UART_FLAG_TC) == RESET);
 
   // small pause
-  delay_us(LIN_BREAKFIELD_DELAY);
-
+  checker_1++;
+  p_LIN_wait_us(LIN_BREAKFIELD_DELAY);
+  checker_2++;
   //--------------------------------------------------------------------
   // Sync-Field
   //--------------------------------------------------------------------
 //  USART_SendData(huart, LIN_SYNC_DATA);
-  HAL_UART_Transmit(huart, (uint8_t*)LIN_SYNC_DATA, 1, 100);
+  uint8_t sync_byte = LIN_SYNC_DATA;
+  HAL_UART_Transmit(huart, &sync_byte, 1, 100);
+
   // wait until SyncField has been sent
 //  while (USART_GetFlagStatus(LIN_UART, USART_FLAG_TC) == RESET);
-  while (__HAL_UART_GET_FLAG(huart, UART_FLAG_TC) == RESET);
+//  while (__HAL_UART_GET_FLAG(huart, UART_FLAG_TC) == RESET);
 
   // small pause
-  delay_us(LIN_DATA_BYTE_DELAY);
+  p_LIN_wait_us(LIN_DATA_BYTE_DELAY);
 
   //--------------------------------------------------------------------
   // ID-Field
@@ -88,12 +102,13 @@ LIN_ERR_t UB_LIN_SendData(LIN_FRAME_t *frame, UART_HandleTypeDef *huart)
 //  USART_SendData(huart, frame->frame_id);
   frame_id = frame->frame_id;
   HAL_UART_Transmit(huart, &frame_id, 1, 100);
+
   // wait until IDField has been sent
 //  while (USART_GetFlagStatus(LIN_UART, USART_FLAG_TC) == RESET);
-  while (__HAL_UART_GET_FLAG(huart, UART_FLAG_TC) == RESET);
+//  while (__HAL_UART_GET_FLAG(huart, UART_FLAG_TC) == RESET);
 
   // small pause
-  delay_us(LIN_FRAME_RESPONSE_DELAY);
+  p_LIN_wait_us(LIN_FRAME_RESPONSE_DELAY);
 
   //--------------------------------------------------------------------
   // Data-Field [1...n]
@@ -101,13 +116,14 @@ LIN_ERR_t UB_LIN_SendData(LIN_FRAME_t *frame, UART_HandleTypeDef *huart)
   for(n=0; n < frame->data_len; n++) {
 //    USART_SendData(huart, frame->data[n]);
 	  tx_data = frame->data[n];
-	  HAL_UART_Transmit(huart, &tx_data, frame->data_len, 100);
+	  HAL_UART_Transmit(huart, &tx_data, 1, 100);
+	  checker_3++;
 	  // wait until DataField has been sent
 //    while (USART_GetFlagStatus(LIN_UART, USART_FLAG_TC) == RESET);
-	  while (__HAL_UART_GET_FLAG(huart, UART_FLAG_TC) == RESET);
+//	  while (__HAL_UART_GET_FLAG(huart, UART_FLAG_TC) == RESET);
 
 	  // small Pause
-	  delay_us(LIN_DATA_BYTE_DELAY);
+	  p_LIN_wait_us(LIN_DATA_BYTE_DELAY);
   }
 
   //--------------------------------------------------------------------
@@ -117,11 +133,17 @@ LIN_ERR_t UB_LIN_SendData(LIN_FRAME_t *frame, UART_HandleTypeDef *huart)
   HAL_UART_Transmit(huart, &checksum, sizeof(checksum), 100);
   // wait until CRCField has been sent
 //  while (USART_GetFlagStatus(LIN_UART, USART_FLAG_TC) == RESET);
-  while (__HAL_UART_GET_FLAG(huart, UART_FLAG_TC) == RESET);
+//  while (__HAL_UART_GET_FLAG(huart, UART_FLAG_TC) == RESET);
 
   // small pause
   // so that the next frame is not sent too fast
-  delay_us(LIN_INTER_FRAME_DELAY);
+  p_LIN_wait_us(LIN_INTER_FRAME_DELAY);
+
+  if (checker_1 == 1000 || checker_2 == 1000 || checker_3 == 1000) {
+	  checker_1 = 0;
+	  checker_2 = 0;
+	  checker_3 = 0;
+  }
 
   return(LIN_OK);
 }
@@ -215,15 +237,15 @@ LIN_ERR_t UB_LIN_ReceiveData(LIN_FRAME_t *frame, UART_HandleTypeDef *huart)
     }
     // reset timeout, at data reception
     if(LIN_MASTER.data_ptr!=n) {
-      n=LIN_MASTER.data_ptr;
-      rx_timeout=0;
+      n=LIN_MASTER.data_ptr; // update condition for data_pointer
+      rx_timeout=0; //reset timeout each time get data
     }
-  }while(LIN_MASTER.mode!=SEND_DATA);
+  }while(LIN_MASTER.mode != SEND_DATA); //break when mode == SEND_DATA
 
   //-------------------------------
   // check if frame was received
   //-------------------------------
-  if(LIN_MASTER.mode!=SEND_DATA) {
+  if(LIN_MASTER.mode != SEND_DATA) { // execute when mode == RECEIVE_DATA || RECEIVE_CRC
     // no frame received
     LIN_MASTER.mode=SEND_DATA;
     // small pause
@@ -298,6 +320,10 @@ void p_LIN_wait_us(uint32_t n)
     for(t=0;t<15;t++); // ca 1us
   }
 }
+
+//uint8_t LIN_testing_receive() {
+//
+//}
 
 
 

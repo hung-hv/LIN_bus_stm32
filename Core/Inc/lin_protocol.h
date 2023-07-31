@@ -21,6 +21,9 @@
 #include "main.h"
 
 extern uint8_t btn;
+extern uint8_t checker_1;
+extern uint8_t checker_2;
+extern uint8_t checker_3;
 
 //--------------------------------------------------------------
 // GPIO : UART-TX (PA2)
@@ -150,6 +153,7 @@ void led_testing();
 LIN_ERR_t UB_LIN_SendData(LIN_FRAME_t *frame, UART_HandleTypeDef *huart);
 LIN_ERR_t UB_LIN_ReceiveData(LIN_FRAME_t *frame, UART_HandleTypeDef *huart);
 uint8_t p_LIN_makeChecksum(LIN_FRAME_t *frame);
+void p_LIN_wait_us(uint32_t n);
 
 
 

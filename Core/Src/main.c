@@ -51,6 +51,7 @@ SPI_HandleTypeDef hspi1;
 TIM_HandleTypeDef htim14;
 
 UART_HandleTypeDef huart2;
+UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
 
@@ -64,6 +65,7 @@ static void MX_I2S3_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_TIM14_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_USART3_UART_Init(void);
 void MX_USB_HOST_Process(void);
 
 /* USER CODE BEGIN PFP */
@@ -78,7 +80,19 @@ uint32_t counter_2 = 1;
 uint8_t array[100] = {0};
 uint32_t alive_sw = 1;
 
-uint32_t counter_timer = 0;
+uint64_t counter_timer = 0;
+uint32_t read_pin_counter = 0;
+
+const uint8_t rx_size = 20;
+uint8_t rx_buff[20] = {0};
+uint8_t tx_buff[4] = {0, 1, 2, 3};
+
+uint8_t raw_data[40] = {};
+uint8_t raw_index = 0;
+//extern uint8_t flag_read_pin;
+uint8_t flag_read_pin = 0;
+
+LIN_ERR_t check;
 
 /* USER CODE END 0 */
 
@@ -116,9 +130,18 @@ int main(void)
   MX_USB_HOST_Init();
   MX_TIM14_Init();
   MX_USART2_UART_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
   /*start timer*/
   HAL_TIM_Base_Start_IT(&htim14);
+  /*start uart iterrrupt*/
+  HAL_UART_Receive_IT(&huart3, rx_buff, 10);
+
+  LIN_FRAME_t myFrame;
+  for (int i = 0; i<40; i++) {
+	  raw_data[i] = 3;
+  }
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -129,7 +152,54 @@ int main(void)
     MX_USB_HOST_Process();
 
     /* USER CODE BEGIN 3 */
+    myFrame.frame_id=0x01;
+    myFrame.data_len=2;
+    myFrame.data[0]=0xA1;
+    myFrame.data[1]=0xB2;
+
+    if(HAL_GPIO_ReadPin (GPIOA, GPIO_PIN_0)) //button down
+	{
+		HAL_Delay(500);
+		btn = -btn;
+//		HAL_UART_Transmit(&huart2, tx_buff, sizeof(tx_buff), HAL_MAX_DELAY);
+		//reset timer for read pin
+		flag_read_pin = 0;
+		raw_index = 0;
+		for (int i = 0; i<40; i++) {
+			raw_data[i] = 3;
+		}
+		//sending via LIN bus
+		check = UB_LIN_SendData(&myFrame, &huart2);
+
+	}
+	if(btn == 1)
+	{
+	//        HAL_Delay(200);
+	 // Set The LED ON!
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
+	}
+	else
+	{
+	//        HAL_Delay(200);
+	 // Else .. Turn LED OFF!
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
+	}
+
     led_testing();
+	alive_sw++;
+	if(HAL_GPIO_ReadPin (GPIOA, GPIO_PIN_3)) {
+	  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
+	  counter++;
+	  if(counter == 1000) counter = 1;
+	} else {
+	  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
+	  counter_2++;
+	  if(counter_2 == 1000) counter_2 = 1;
+	}
+	if(alive_sw == 1000) alive_sw = 0;
+
   }
   /* USER CODE END 3 */
 }
@@ -303,7 +373,7 @@ static void MX_TIM14_Init(void)
   htim14.Instance = TIM14;
   htim14.Init.Prescaler = 84-1;
   htim14.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim14.Init.Period = 1000-1;
+  htim14.Init.Period = 1;
   htim14.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim14.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim14) != HAL_OK)
@@ -350,6 +420,39 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
+  * @brief USART3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART3_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART3_Init 0 */
+
+  /* USER CODE END USART3_Init 0 */
+
+  /* USER CODE BEGIN USART3_Init 1 */
+
+  /* USER CODE END USART3_Init 1 */
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 19200;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_LIN_Init(&huart3, UART_LINBREAKDETECTLENGTH_11B) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART3_Init 2 */
+
+  /* USER CODE END USART3_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -375,8 +478,8 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(OTG_FS_PowerSwitchOn_GPIO_Port, OTG_FS_PowerSwitchOn_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_8|LD4_Pin|LD3_Pin|LD5_Pin
-                          |LD6_Pin|Audio_RST_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, LD4_Pin|LD3_Pin|LD5_Pin|LD6_Pin
+                          |Audio_RST_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : CS_I2C_SPI_Pin */
   GPIO_InitStruct.Pin = CS_I2C_SPI_Pin;
@@ -406,12 +509,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PA3 */
-  GPIO_InitStruct.Pin = GPIO_PIN_3;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
   /*Configure GPIO pin : BOOT1_Pin */
   GPIO_InitStruct.Pin = BOOT1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
@@ -438,11 +535,16 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PD8 */
-  GPIO_InitStruct.Pin = GPIO_PIN_8;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  /*Configure GPIO pin : PD10 */
+  GPIO_InitStruct.Pin = GPIO_PIN_10;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PD11 OTG_FS_OverCurrent_Pin */
+  GPIO_InitStruct.Pin = GPIO_PIN_11|OTG_FS_OverCurrent_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LD4_Pin LD3_Pin LD5_Pin LD6_Pin
@@ -453,12 +555,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : OTG_FS_OverCurrent_Pin */
-  GPIO_InitStruct.Pin = OTG_FS_OverCurrent_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(OTG_FS_OverCurrent_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
@@ -476,12 +572,37 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   // Check which version of the timer triggered this callback and toggle LED
   if (htim == &htim14)
   {
-	  if(counter_timer >= 100) {
+	  if(counter_timer >= 100000) {
 		  HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_13);
 		  counter_timer = 0;
-	  } else {
+	  }
+	  else {
 		  counter_timer++;
 	  }
+
+//	  if (flag_read_pin == 0) { //one time only
+//		  if (HAL_GPIO_ReadPin (GPIOD, GPIO_PIN_11) == 0) {
+//			  flag_read_pin = 1;
+//		  }
+//	  }
+
+	  if (flag_read_pin == 1) {
+//		  if (raw_index < 38) {
+//			  raw_data[raw_index] = HAL_GPIO_ReadPin (GPIOD, GPIO_PIN_11);
+//			  raw_index ++;
+//		  }
+//		  read_pin_counter = 0;
+		  if (read_pin_counter >= 52) {
+			  if (raw_index < 38) {
+				  raw_data[raw_index] = HAL_GPIO_ReadPin (GPIOD, GPIO_PIN_11);
+				  raw_index ++;
+			  }
+			  read_pin_counter = 0;
+		  } else {
+			  read_pin_counter++;
+		  }
+	  }
+
 
   }
 }
@@ -490,6 +611,11 @@ void delay_us (uint16_t us)
 {
 	__HAL_TIM_SET_COUNTER(&htim14, 0);  // set the counter value a 0
 	while (__HAL_TIM_GET_COUNTER(&htim14) < us);  // wait for the counter to reach the us input in the parameter
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  HAL_UART_Receive_IT(&huart3, rx_buff, 20); //You need to toggle a breakpoint on this line!
 }
 
 //uint8_t LIN_Transmit() {
