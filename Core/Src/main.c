@@ -33,6 +33,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define LOGIC_CONFIRMED 8 // 8/13
+#define SAMPLE_TIME 	4 // each 4 time counter
+#define MAX_SAMPLE 		13 // each 4 time counter
+#define MAX_COUNTER 	52 // each 4 time counter
 
 /* USER CODE END PD */
 
@@ -93,6 +97,14 @@ uint8_t raw_index = 0;
 uint8_t flag_read_pin = 0;
 
 LIN_ERR_t check;
+
+//for dertermine LOGIC level
+uint8_t logic_counter = 0;
+uint8_t sample_counter = 0; //max = 13
+uint8_t dertimine_logic = 0; //max = 13
+
+uint8_t bit_index = 0; //max = 20
+uint8_t bit_array[20] = {0};
 
 /* USER CODE END 0 */
 
@@ -371,9 +383,9 @@ static void MX_TIM14_Init(void)
 
   /* USER CODE END TIM14_Init 1 */
   htim14.Instance = TIM14;
-  htim14.Init.Prescaler = 84-1;
+  htim14.Init.Prescaler = 1-1;
   htim14.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim14.Init.Period = 1;
+  htim14.Init.Period = 84-1;
   htim14.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim14.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim14) != HAL_OK)
@@ -601,9 +613,31 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		  } else {
 			  read_pin_counter++;
 		  }
+
+
+		  if(HAL_GPIO_ReadPin (GPIOD, GPIO_PIN_11) == GPIO_PIN_RESET) { //start trigger dertermine LOGIC
+			  if (logic_counter == 4) {
+				  sample_counter++; //max = 13
+				  logic_counter = 0; //max = 4 ->reset
+				  // check logic
+				  if(HAL_GPIO_ReadPin (GPIOD, GPIO_PIN_11) == GPIO_PIN_RESET) {
+					  dertimine_logic++; //adding 1 each time sampling
+				  } else {
+					  //do nothing
+				  }
+				  if (dertimine_logic > LOGIC_CONFIRMED) {
+					  bit_array[bit_index] = 0;
+				  } else {
+					  bit_array[bit_index] = 1;
+				  }
+				  // end check logic
+			  }
+			  logic_counter++;
+		  } else {
+			  //do nothing
+		  }
+
 	  }
-
-
   }
 }
 
