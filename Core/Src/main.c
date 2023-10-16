@@ -50,8 +50,6 @@ I2C_HandleTypeDef hi2c1;
 
 I2S_HandleTypeDef hi2s3;
 
-SPI_HandleTypeDef hspi1;
-
 TIM_HandleTypeDef htim14;
 
 UART_HandleTypeDef huart2;
@@ -66,7 +64,6 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_I2S3_Init(void);
-static void MX_SPI1_Init(void);
 static void MX_TIM14_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_USART3_UART_Init(void);
@@ -106,6 +103,12 @@ uint8_t dertimine_logic = 0; //max = 13
 uint8_t bit_index = 0; //max = 20
 uint8_t bit_array[20] = {0};
 
+uint8_t tx_data = 0;
+uint8_t rx_data = 0;
+
+LIN_FRAME_t myFrame;
+uint8_t uart2_rx_data = 0;
+
 /* USER CODE END 0 */
 
 /**
@@ -138,7 +141,6 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_I2S3_Init();
-  MX_SPI1_Init();
   MX_USB_HOST_Init();
   MX_TIM14_Init();
   MX_USART2_UART_Init();
@@ -146,13 +148,15 @@ int main(void)
   /* USER CODE BEGIN 2 */
   /*start timer*/
   HAL_TIM_Base_Start_IT(&htim14);
+  HAL_UART_Receive_IT (&huart3, rx_buff, 20);
+  HAL_UART_Receive_IT (&huart2, &uart2_rx_data, 1);
   /*start uart iterrrupt*/
-  HAL_UART_Receive_IT(&huart3, rx_buff, 10);
+//  HAL_UART_Receive_IT(&huart3, rx_buff, 10);
 
-  LIN_FRAME_t myFrame;
-  for (int i = 0; i<40; i++) {
-	  raw_data[i] = 3;
-  }
+//  LIN_FRAME_t myFrame;
+//  for (int i = 0; i<40; i++) {
+//	  raw_data[i] = 3;
+//  }
 
   /* USER CODE END 2 */
 
@@ -164,54 +168,69 @@ int main(void)
     MX_USB_HOST_Process();
 
     /* USER CODE BEGIN 3 */
-    myFrame.frame_id=0x01;
-    myFrame.data_len=2;
-    myFrame.data[0]=0xA1;
-    myFrame.data[1]=0xB2;
 
-    if(HAL_GPIO_ReadPin (GPIOA, GPIO_PIN_0)) //button down
-	{
-		HAL_Delay(500);
-		btn = -btn;
-//		HAL_UART_Transmit(&huart2, tx_buff, sizeof(tx_buff), HAL_MAX_DELAY);
-		//reset timer for read pin
-		flag_read_pin = 0;
-		raw_index = 0;
-		for (int i = 0; i<40; i++) {
-			raw_data[i] = 3;
-		}
-		//sending via LIN bus
-		check = UB_LIN_SendData(&myFrame, &huart2);
+    if (tx_data == 10) {
+    	UB_LIN_SendData(&myFrame, &huart2);
+    	HAL_Delay(100);
+    	tx_data = 20;
+    } else if ( tx_data == 20) {
+//    	UB_LIN_SendData(&myFrame, &huart2);
+//    	HAL_Delay(100);
+    } else {
+    	//do nothing
+    }
 
-	}
-	if(btn == 1)
-	{
-	//        HAL_Delay(200);
-	 // Set The LED ON!
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
-	}
-	else
-	{
-	//        HAL_Delay(200);
-	 // Else .. Turn LED OFF!
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
-		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
-	}
 
-    led_testing();
+//    if(HAL_GPIO_ReadPin (GPIOA, GPIO_PIN_0)) //button down
+//	{
+//		HAL_Delay(500);
+//		btn = -btn;
+////		HAL_UART_Transmit(&huart2, tx_buff, sizeof(tx_buff), HAL_MAX_DELAY);
+//		//reset timer for read pin
+//		flag_read_pin = 0;
+//		raw_index = 0;
+//		for (int i = 0; i<40; i++) {
+//			raw_data[i] = 3;
+//		}
+//		//sending via LIN bus
+//		check = UB_LIN_SendData(&myFrame, &huart2);
+//
+//	}
+//	if(btn == 1)
+//	{
+//	//        HAL_Delay(200);
+//	 // Set The LED ON!
+//		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);
+//		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
+//	}
+//	else
+//	{
+//	//        HAL_Delay(200);
+//	 // Else .. Turn LED OFF!
+//		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
+//		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
+//	}
+//
+//    led_testing();
 	alive_sw++;
-	if(HAL_GPIO_ReadPin (GPIOA, GPIO_PIN_3)) {
-	  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
-	  counter++;
-	  if(counter == 1000) counter = 1;
-	} else {
-	  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
-	  counter_2++;
-	  if(counter_2 == 1000) counter_2 = 1;
-	}
+//	if(HAL_GPIO_ReadPin (GPIOA, GPIO_PIN_3)) {
+//	  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
+//	  counter++;
+//	  if(counter == 1000) counter = 1;
+//	} else {
+//	  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
+//	  counter_2++;
+//	  if(counter_2 == 1000) counter_2 = 1;
+//	}
 	if(alive_sw == 1000) alive_sw = 0;
 
+	  if (rx_data == 10) {
+		  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, 1);
+		  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, 1);
+	  } else {
+		  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, 0);
+		  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, 0);
+	  }
   }
   /* USER CODE END 3 */
 }
@@ -326,44 +345,6 @@ static void MX_I2S3_Init(void)
   /* USER CODE BEGIN I2S3_Init 2 */
 
   /* USER CODE END I2S3_Init 2 */
-
-}
-
-/**
-  * @brief SPI1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_SPI1_Init(void)
-{
-
-  /* USER CODE BEGIN SPI1_Init 0 */
-
-  /* USER CODE END SPI1_Init 0 */
-
-  /* USER CODE BEGIN SPI1_Init 1 */
-
-  /* USER CODE END SPI1_Init 1 */
-  /* SPI1 parameter configuration*/
-  hspi1.Instance = SPI1;
-  hspi1.Init.Mode = SPI_MODE_MASTER;
-  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi1.Init.CRCPolynomial = 10;
-  if (HAL_SPI_Init(&hspi1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN SPI1_Init 2 */
-
-  /* USER CODE END SPI1_Init 2 */
 
 }
 
@@ -484,21 +465,20 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(CS_I2C_SPI_GPIO_Port, CS_I2C_SPI_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(OTG_FS_PowerSwitchOn_GPIO_Port, OTG_FS_PowerSwitchOn_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(OTG_FS_PowerSwitchOn_GPIO_Port, OTG_FS_PowerSwitchOn_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOA, LED_D2_Pin|LED_D3_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, LD4_Pin|LD3_Pin|LD5_Pin|LD6_Pin
                           |Audio_RST_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : CS_I2C_SPI_Pin */
-  GPIO_InitStruct.Pin = CS_I2C_SPI_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(CS_I2C_SPI_GPIO_Port, &GPIO_InitStruct);
+  /*Configure GPIO pins : KEY1_Pin KEY0_Pin */
+  GPIO_InitStruct.Pin = KEY1_Pin|KEY0_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pin : OTG_FS_PowerSwitchOn_Pin */
   GPIO_InitStruct.Pin = OTG_FS_PowerSwitchOn_Pin;
@@ -520,6 +500,21 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_EVT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : SPI1_SCK_Pin */
+  GPIO_InitStruct.Pin = SPI1_SCK_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Alternate = GPIO_AF5_SPI1;
+  HAL_GPIO_Init(SPI1_SCK_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : LED_D2_Pin LED_D3_Pin */
+  GPIO_InitStruct.Pin = LED_D2_Pin|LED_D3_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : BOOT1_Pin */
   GPIO_InitStruct.Pin = BOOT1_Pin;
@@ -569,6 +564,12 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
+
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
@@ -582,63 +583,63 @@ static void MX_GPIO_Init(void)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   // Check which version of the timer triggered this callback and toggle LED
-  if (htim == &htim14)
-  {
-	  if(counter_timer >= 100000) {
-		  HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_13);
-		  counter_timer = 0;
-	  }
-	  else {
-		  counter_timer++;
-	  }
-
-//	  if (flag_read_pin == 0) { //one time only
-//		  if (HAL_GPIO_ReadPin (GPIOD, GPIO_PIN_11) == 0) {
-//			  flag_read_pin = 1;
-//		  }
+//  if (htim == &htim14)
+//  {
+//	  if(counter_timer >= 100000) {
+//		  HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_13);
+//		  counter_timer = 0;
 //	  }
-
-	  if (flag_read_pin == 1) {
-//		  if (raw_index < 38) {
-//			  raw_data[raw_index] = HAL_GPIO_ReadPin (GPIOD, GPIO_PIN_11);
-//			  raw_index ++;
+//	  else {
+//		  counter_timer++;
+//	  }
+//
+////	  if (flag_read_pin == 0) { //one time only
+////		  if (HAL_GPIO_ReadPin (GPIOD, GPIO_PIN_11) == 0) {
+////			  flag_read_pin = 1;
+////		  }
+////	  }
+//
+//	  if (flag_read_pin == 1) {
+////		  if (raw_index < 38) {
+////			  raw_data[raw_index] = HAL_GPIO_ReadPin (GPIOD, GPIO_PIN_11);
+////			  raw_index ++;
+////		  }
+////		  read_pin_counter = 0;
+//		  if (read_pin_counter >= 52) {
+//			  if (raw_index < 38) {
+//				  raw_data[raw_index] = HAL_GPIO_ReadPin (GPIOD, GPIO_PIN_11);
+//				  raw_index ++;
+//			  }
+//			  read_pin_counter = 0;
+//		  } else {
+//			  read_pin_counter++;
 //		  }
-//		  read_pin_counter = 0;
-		  if (read_pin_counter >= 52) {
-			  if (raw_index < 38) {
-				  raw_data[raw_index] = HAL_GPIO_ReadPin (GPIOD, GPIO_PIN_11);
-				  raw_index ++;
-			  }
-			  read_pin_counter = 0;
-		  } else {
-			  read_pin_counter++;
-		  }
-
-
-		  if(HAL_GPIO_ReadPin (GPIOD, GPIO_PIN_11) == GPIO_PIN_RESET) { //start trigger dertermine LOGIC
-			  if (logic_counter == 4) {
-				  sample_counter++; //max = 13
-				  logic_counter = 0; //max = 4 ->reset
-				  // check logic
-				  if(HAL_GPIO_ReadPin (GPIOD, GPIO_PIN_11) == GPIO_PIN_RESET) {
-					  dertimine_logic++; //adding 1 each time sampling
-				  } else {
-					  //do nothing
-				  }
-				  if (dertimine_logic > LOGIC_CONFIRMED) {
-					  bit_array[bit_index] = 0;
-				  } else {
-					  bit_array[bit_index] = 1;
-				  }
-				  // end check logic
-			  }
-			  logic_counter++;
-		  } else {
-			  //do nothing
-		  }
-
-	  }
-  }
+//
+//
+//		  if(HAL_GPIO_ReadPin (GPIOD, GPIO_PIN_11) == GPIO_PIN_RESET) { //start trigger dertermine LOGIC
+//			  if (logic_counter == 4) {
+//				  sample_counter++; //max = 13
+//				  logic_counter = 0; //max = 4 ->reset
+//				  // check logic
+//				  if(HAL_GPIO_ReadPin (GPIOD, GPIO_PIN_11) == GPIO_PIN_RESET) {
+//					  dertimine_logic++; //adding 1 each time sampling
+//				  } else {
+//					  //do nothing
+//				  }
+//				  if (dertimine_logic > LOGIC_CONFIRMED) {
+//					  bit_array[bit_index] = 0;
+//				  } else {
+//					  bit_array[bit_index] = 1;
+//				  }
+//				  // end check logic
+//			  }
+//			  logic_counter++;
+//		  } else {
+//			  //do nothing
+//		  }
+//
+//	  }
+//  }
 }
 
 void delay_us (uint16_t us)
@@ -649,7 +650,46 @@ void delay_us (uint16_t us)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-  HAL_UART_Receive_IT(&huart3, rx_buff, 20); //You need to toggle a breakpoint on this line!
+	counter_2++;
+	if (counter_2 >= 1000) counter_2 = 0;
+	if(huart->Instance == huart3.Instance) {
+		HAL_UART_Receive_IT(&huart3, rx_buff, 10); //You need to toggle a breakpoint on this line!
+		uint8_t feedback_data = 10;
+		HAL_UART_Transmit(&huart3, &feedback_data, 1, 100);
+	}
+	if(huart->Instance == huart2.Instance) {
+		HAL_UART_Receive_IT(&huart2, &uart2_rx_data, 1);
+	}
+
+}
+
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+ if (GPIO_Pin == GPIO_PIN_3) //key 1
+ {
+	 tx_data = 10;
+//	 HAL_UART_Transmit(&huart2, &tx_data, 1, 100);
+	 myFrame.frame_id=0x01;
+	 myFrame.data_len=2;
+	 myFrame.data[0]=0xA1;
+	 myFrame.data[1]=0xB2;
+//	 UB_LIN_SendData(&myFrame, &huart2);
+//	 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, 1);
+//	 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, 1);
+ }
+ else if (GPIO_Pin == GPIO_PIN_4) //key 0
+ {
+	 tx_data = 10;
+	 myFrame.frame_id=0x05;
+	 myFrame.data_len=2;
+	 myFrame.data[0]=0x01;
+	 myFrame.data[1]=0x02;
+//	 UB_LIN_SendData(&myFrame, &huart2);
+//	 HAL_UART_Transmit(&huart2, &tx_data, 1, 100);
+//	 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, 0);
+//	 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, 0);
+ }
 }
 
 //uint8_t LIN_Transmit() {

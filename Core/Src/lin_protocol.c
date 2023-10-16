@@ -69,18 +69,19 @@ LIN_ERR_t UB_LIN_SendData(LIN_FRAME_t *frame, UART_HandleTypeDef *huart)
   // Break-Field
   //--------------------------------------------------------------------
 //  flag_read_pin = 1; //active timer for reading pin
-  uint8_t test_data = 0xB7;
+//  uint8_t test_data = 0xB7;
     flag_read_pin = 1; //active timer for reading pin
 
   HAL_LIN_SendBreak(huart);
-  HAL_UART_Transmit(huart, &test_data, 1, 100);
+
+//  HAL_UART_Transmit(huart, &test_data, 1, 100);
   // wait until BreakField has been sent
 //  while (USART_GetFlagStatus(LIN_UART, USART_FLAG_TC) == RESET);
 //  while (__HAL_UART_GET_FLAG(huart, UART_FLAG_TC) == RESET);
 
   // small pause
   checker_1++;
-  p_LIN_wait_us(LIN_BREAKFIELD_DELAY);
+//  p_LIN_wait_us(LIN_BREAKFIELD_DELAY);
   checker_2++;
   //--------------------------------------------------------------------
   // Sync-Field
@@ -94,7 +95,7 @@ LIN_ERR_t UB_LIN_SendData(LIN_FRAME_t *frame, UART_HandleTypeDef *huart)
 //  while (__HAL_UART_GET_FLAG(huart, UART_FLAG_TC) == RESET);
 
   // small pause
-  p_LIN_wait_us(LIN_DATA_BYTE_DELAY);
+//  p_LIN_wait_us(LIN_DATA_BYTE_DELAY);
 
   //--------------------------------------------------------------------
   // ID-Field
@@ -108,7 +109,7 @@ LIN_ERR_t UB_LIN_SendData(LIN_FRAME_t *frame, UART_HandleTypeDef *huart)
 //  while (__HAL_UART_GET_FLAG(huart, UART_FLAG_TC) == RESET);
 
   // small pause
-  p_LIN_wait_us(LIN_FRAME_RESPONSE_DELAY);
+//  p_LIN_wait_us(LIN_FRAME_RESPONSE_DELAY);
 
   //--------------------------------------------------------------------
   // Data-Field [1...n]
@@ -123,7 +124,7 @@ LIN_ERR_t UB_LIN_SendData(LIN_FRAME_t *frame, UART_HandleTypeDef *huart)
 //	  while (__HAL_UART_GET_FLAG(huart, UART_FLAG_TC) == RESET);
 
 	  // small Pause
-	  p_LIN_wait_us(LIN_DATA_BYTE_DELAY);
+//	  p_LIN_wait_us(LIN_DATA_BYTE_DELAY);
   }
 
   //--------------------------------------------------------------------
@@ -137,7 +138,7 @@ LIN_ERR_t UB_LIN_SendData(LIN_FRAME_t *frame, UART_HandleTypeDef *huart)
 
   // small pause
   // so that the next frame is not sent too fast
-  p_LIN_wait_us(LIN_INTER_FRAME_DELAY);
+//  p_LIN_wait_us(LIN_INTER_FRAME_DELAY);
 
   if (checker_1 == 1000 || checker_2 == 1000 || checker_3 == 1000) {
 	  checker_1 = 0;

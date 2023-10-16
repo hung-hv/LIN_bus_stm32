@@ -1,5 +1,5 @@
 ../Core/Src/lin_protocol.c:17:6:led_testing	8	static
 ../Core/Src/lin_protocol.c:50:11:UB_LIN_SendData	24	static
-../Core/Src/lin_protocol.c:165:11:UB_LIN_ReceiveData	24	static
-../Core/Src/lin_protocol.c:294:9:p_LIN_makeChecksum	24	static
-../Core/Src/lin_protocol.c:314:6:p_LIN_wait_us	24	static
+../Core/Src/lin_protocol.c:166:11:UB_LIN_ReceiveData	24	static
+../Core/Src/lin_protocol.c:295:9:p_LIN_makeChecksum	24	static
+../Core/Src/lin_protocol.c:315:6:p_LIN_wait_us	24	static
